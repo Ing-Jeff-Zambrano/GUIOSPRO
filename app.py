@@ -59,8 +59,6 @@ st.set_page_config(
 )
 st.markdown(CUSTOM_CSS, unsafe_allow_html=True)
 
-
-@st.cache_resource
 def _init_storage() -> str:
     return ensure_database_ready()
 
@@ -80,8 +78,8 @@ def page_login(storage_mode: str) -> None:
     with col2:
         st.markdown("##### Acceso corporativo")
         with st.form("login"):
-            user = st.text_input("Usuario", placeholder="decisor")
-            pwd = st.text_input("Contraseña", type="password", placeholder="••••••••")
+            user = st.text_input("Usuario")
+            pwd = st.text_input("Contraseña", type="password")
             submitted = st.form_submit_button("Ingresar al sistema", type="primary", use_container_width=True)
         if submitted:
             auth = authenticate(user.strip(), pwd)
@@ -91,9 +89,7 @@ def page_login(storage_mode: str) -> None:
                 st.rerun()
             else:
                 st.error("Credenciales incorrectas.")
-        demo_user = os.getenv("GUIOSPRO_DEMO_USERNAME", "decisor")
-        st.caption(f"Usuario demo configurado: **{demo_user}**")
-        st.caption(f"Almacenamiento: {storage_mode}")
+        
 
 
 def get_user() -> AuthUser:
