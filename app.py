@@ -5,6 +5,8 @@ Ejecutar: streamlit run app.py
 
 from __future__ import annotations
 
+import os
+
 import streamlit as st
 
 from auth.service import AuthUser, authenticate
@@ -27,6 +29,27 @@ from ui.components import (
     render_sidebar_user,
 )
 from ui.styles import CUSTOM_CSS
+
+
+def _load_runtime_secrets() -> None:
+    try:
+        secrets = st.secrets
+    except Exception:
+        return
+
+    for key in (
+        "GUIOSPRO_DEMO_USERNAME",
+        "GUIOSPRO_DEMO_PASSWORD",
+        "GUIOSPRO_DEMO_ROLE",
+        "GUIOSPRO_DEMO_NAME",
+        "GUIOSPRO_DEMO_EMAIL",
+    ):
+        value = secrets.get(key)
+        if value is not None and not os.getenv(key):
+            os.environ[key] = str(value).strip()
+
+
+_load_runtime_secrets()
 
 st.set_page_config(
     page_title="GUIOSPRO | Adopción FLOSS",
@@ -68,7 +91,8 @@ def page_login(storage_mode: str) -> None:
                 st.rerun()
             else:
                 st.error("Credenciales incorrectas.")
-        st.caption("Demo: **decisor** / Decisor2025!")
+        demo_user = os.getenv("GUIOSPRO_DEMO_USERNAME", "decisor")
+        st.caption(f"Usuario demo configurado: **{demo_user}**")
         st.caption(f"Almacenamiento: {storage_mode}")
 
 

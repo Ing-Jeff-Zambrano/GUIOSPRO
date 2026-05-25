@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import os
+
 from auth.service import hash_password
 from db.config import storage_label
 from db.models import Organizacion, Usuario
@@ -10,6 +12,37 @@ from services.catalog import seed_catalog_if_empty
 from sqlalchemy import select
 
 _bootstrapped = False
+
+
+DEFAULT_USERS = [
+    ("decisor", "Decisor2025!", "decisor", "Jefferson Zambrano", "decisor@demo.guiospro.local"),
+    ("consultor", "Consultor2025!", "consultor", "Luis Pérez — Consultor", "consultor@demo.guiospro.local"),
+    ("admin", "Admin2025!", "admin", "Admin Sistema", "admin@demo.guiospro.local"),
+]
+
+
+def _upsert_user(session, org: Organizacion, username: str, password: str, rol: str, nombre: str, email: str) -> None:
+    user = session.execute(select(Usuario).where(Usuario.username == username)).scalar_one_or_none()
+    password_hash = hash_password(password)
+    if user:
+        user.organizacion_id = org.id
+        user.email = email
+        user.password_hash = password_hash
+        user.rol = rol
+        user.nombre_completo = nombre
+        user.activo = True
+        return
+
+    session.add(
+        Usuario(
+            organizacion_id=org.id,
+            username=username,
+            email=email,
+            password_hash=password_hash,
+            rol=rol,
+            nombre_completo=nombre,
+        )
+    )
 
 
 def seed_users() -> None:
@@ -22,28 +55,17 @@ def seed_users() -> None:
             session.add(org)
             session.flush()
 
-        users = [
-            ("decisor", "Decisor2025!", "decisor", "Jefferson Zambrano"),
-            ("consultor", "Consultor2025!", "consultor", "Luis Pérez — Consultor"),
-            ("admin", "Admin2025!", "admin", "Admin Sistema"),
-        ]
-        for username, password, rol, nombre in users:
-            exists = session.execute(
-                select(Usuario).where(Usuario.username == username)
-            ).scalar_one_or_none()
-            if exists:
-                exists.nombre_completo = nombre
-                continue
-            session.add(
-                Usuario(
-                    organizacion_id=org.id,
-                    username=username,
-                    email=f"{username}@demo.guiospro.local",
-                    password_hash=hash_password(password),
-                    rol=rol,
-                    nombre_completo=nombre,
-                )
-            )
+        demo_username = os.getenv("GUIOSPRO_DEMO_USERNAME", "").strip()
+        demo_password = os.getenv("GUIOSPRO_DEMO_PASSWORD", "").strip()
+        if demo_username and demo_password:
+            demo_role = os.getenv("GUIOSPRO_DEMO_ROLE", "decisor").strip().lower() or "decisor"
+            demo_name = os.getenv("GUIOSPRO_DEMO_NAME", "").strip() or demo_username
+            demo_email = os.getenv("GUIOSPRO_DEMO_EMAIL", "").strip() or f"{demo_username}@demo.guiospro.local"
+            _upsert_user(session, org, demo_username, demo_password, demo_role, demo_name, demo_email)
+
+        for username, password, rol, nombre, email in DEFAULT_USERS:
+            _upsert_user(session, org, username, password, rol, nombre, email)
+
         session.commit()
 
 
